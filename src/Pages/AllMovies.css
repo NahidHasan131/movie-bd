@@ -1,0 +1,50 @@
+.movie-card {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  overflow: hidden;
+}
+
+.movie-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15) !important;
+}
+
+.movie-image-wrapper {
+  overflow: hidden;
+  height: 300px;
+}
+
+.movie-image-wrapper img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.movie-card:hover .movie-image-wrapper img {
+  transform: scale(1.1);
+}
+
+.movie-overlay {
+  background: rgba(0, 0, 0, 0.6);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.movie-card:hover .movie-overlay {
+  opacity: 1;
+}
+
+.play-btn {
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  transform: scale(0.8);
+  transition: transform 0.3s ease;
+}
+
+.movie-card:hover .play-btn {
+  transform: scale(1);
+}
