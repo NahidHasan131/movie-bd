@@ -1,6 +1,6 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
 
-const BASE_URL = 'http://192.168.0.106:5040/api/v1'
+const BASE_URL = 'http://192.168.0.104:5040/api/v1'
 
 export const authApi = createApi({
   reducerPath: 'authApi',
@@ -32,7 +32,7 @@ export const authApi = createApi({
     }),
     profile: builder.query({
       query: () =>({
-        url: '/users/me/',
+        url: '/users/me',
         method: 'GET'
       }),
     }) 

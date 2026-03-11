@@ -20,6 +20,7 @@ const Sidebar = ({ isExpanded, toggleSidebar }) => {
     { icon: faList, label: 'All Movie List', path: '/admin/movie-list' },
     { icon: faUsers, label: 'Authors', path: '/admin/authors' },
     { icon: faTags, label: 'Categories', path: '/admin/categories' },
+    { icon: faTags, label: 'Genres', path: '/admin/genres' },
     { icon: faCog, label: 'Settings', path: '/admin/settings' },
   ]
 

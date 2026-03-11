@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faEnvelope, faLock, faFilm } from '@fortawesome/free-solid-svg-icons'
 import { Link, useNavigate } from 'react-router-dom'
@@ -6,41 +5,41 @@ import { useDispatch } from 'react-redux'
 import { setCredentials } from '../store/authSlice'
 import { useLoginMutation } from '../store/authApi'
 import { toast } from 'react-toastify'
+import { useForm } from 'react-hook-form'
+import { yupResolver } from '@hookform/resolvers/yup'
+import * as yup from 'yup'
 import './Login.css'
+
+const loginSchema = yup.object({
+  mobile: yup.string()
+    .required('Mobile number is required')
+    .matches(/^01[0-9]{9}$/, 'Mobile number must be 11 digits starting with 01'),
+  password: yup.string()
+    .required('Password is required')
+    .min(6, 'Password must be at least 6 characters')
+}).required()
 
 const Login = () => {
   const navigate = useNavigate()
   const dispatch = useDispatch()
   const [login, { isLoading }] = useLoginMutation()
   
-  const [formData, setFormData] = useState({
-    mobile: '',
-    password: ''
+  const { register, handleSubmit, formState: { errors } } = useForm({
+    resolver: yupResolver(loginSchema),
+    defaultValues: {
+      mobile: '',
+      password: ''
+    }
   })
-  const [error, setError] = useState('')
 
-  const handleChange = (e) => {
-    const { name, value } = e.target
-    setFormData(prev => ({ ...prev, [name]: value }))
-    setError('') 
-  }
-
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    setError('')
-
+  const onSubmit = async (data) => {
     try {
-      const result = await login({
-        mobile: formData.mobile,
-        password: formData.password
-      }).unwrap()
+      const result = await login(data).unwrap()
       
       console.log('Login response:', result)
       
-      // API response: { data: { accessToken, user }, code, message }
       dispatch(setCredentials({
-        accessToken: result.data.accessToken,
-        user: result.data.user
+        accessToken: result.data.accessToken
       }))
       
       toast.success(result.message || 'Login successful! Welcome back.', {
@@ -51,13 +50,13 @@ const Login = () => {
     } catch (err) {
       console.error('Login error:', err)
       const errorMessage = err?.data?.message || err?.message || 'Invalid mobile or password'
-      setError(errorMessage)
       toast.error(errorMessage, {
         position: 'top-right',
         autoClose: 1000
       })
     }
   }
+
   return (
     <div className="login-container d-flex align-items-center justify-content-center">
       <div className="card shadow-lg border-0" style={{ maxWidth: '450px', width: '100%' }}>
@@ -72,14 +71,7 @@ const Login = () => {
           </div>
 
           {/* Login Form */}
-          <form onSubmit={handleSubmit}>
-            {/* Error Message */}
-            {error && (
-              <div className="alert alert-danger" role="alert">
-                {error}
-              </div>
-            )}
-
+          <form onSubmit={handleSubmit(onSubmit)}>
             {/* Mobile Input */}   
             <div className="mb-3">
               <label className="form-label fw-semibold" htmlFor="mobile">Mobile Number</label>
@@ -87,8 +79,17 @@ const Login = () => {
                 <span className="input-group-text bg-white">
                   <FontAwesomeIcon icon={faEnvelope} className="text-muted" />
                 </span>
-                <input type="text" id='mobile' name="mobile" value={formData.mobile} onChange={handleChange} className="form-control shadow-none"  placeholder="01899999990" required/>
+                <input 
+                  type="text" 
+                  id='mobile'
+                  {...register('mobile')}
+                  className={`form-control shadow-none ${errors.mobile ? 'is-invalid' : ''}`}
+                  placeholder="Enter mobile number"
+                />
               </div>
+              {errors.mobile && (
+                <div className="text-danger small mt-1">{errors.mobile.message}</div>
+              )}
             </div>
 
             {/* Password Input */}
@@ -98,8 +99,17 @@ const Login = () => {
                 <span className="input-group-text bg-white">
                   <FontAwesomeIcon icon={faLock} className="text-muted" />
                 </span>
-                <input type="password" id='password' name="password" value={formData.password} onChange={handleChange} className="form-control shadow-none" placeholder="asdfasdf" required />
+                <input 
+                  type="password" 
+                  id='password'
+                  {...register('password')}
+                  className={`form-control shadow-none ${errors.password ? 'is-invalid' : ''}`}
+                  placeholder="Enter password"
+                />
               </div>
+              {errors.password && (
+                <div className="text-danger small mt-1">{errors.password.message}</div>
+              )}
             </div>
 
             {/* Remember Me & Forgot Password */}

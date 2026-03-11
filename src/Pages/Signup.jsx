@@ -1,73 +1,85 @@
-import { useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import {  faLock, faUser, faFilm, faPhone } from '@fortawesome/free-solid-svg-icons'
+import { faLock, faUser, faFilm, faPhone } from '@fortawesome/free-solid-svg-icons'
 import { Link, useNavigate } from 'react-router-dom'
 import { useDispatch } from 'react-redux'
 import { setCredentials } from '../store/authSlice'
 import { useSignupMutation } from '../store/authApi'
 import { toast } from 'react-toastify'
+import { useForm } from 'react-hook-form'
+import { yupResolver } from '@hookform/resolvers/yup'
+import * as yup from 'yup'
 import './Login.css'
+
+const signupSchema = yup.object({
+  name: yup.string()
+    .required('Name is required')
+    .min(2, 'Name must be at least 2 characters'),
+  gender: yup.string()
+    .required('Gender is required')
+    .oneOf(['MALE', 'FEMALE'], 'Invalid gender'),
+  mobile: yup.string()
+    .required('Mobile number is required')
+    .matches(/^01[0-9]{9}$/, 'Mobile number must be 11 digits starting with 01'),
+  password: yup.string()
+    .required('Password is required')
+    .min(6, 'Password must be at least 6 characters'),
+  confirmPassword: yup.string()
+    .required('Confirm password is required')
+    .oneOf([yup.ref('password')], 'Passwords must match')
+}).required()
 
 const Signup = () => {
   const navigate = useNavigate()
   const dispatch = useDispatch()
   const [signup, { isLoading }] = useSignupMutation()
   
-  const [formData, setFormData] = useState({
-    name: '',
-    gender: 'MALE',
-    mobile: '',
-    password: '',
-    confirmPassword: '',
-    status: 'ACTIVE'
+  const { register, handleSubmit, formState: { errors } } = useForm({
+    resolver: yupResolver(signupSchema),
+    defaultValues: {
+      name: '',
+      gender: 'MALE',
+      mobile: '',
+      password: '',
+      confirmPassword: ''
+    }
   })
 
-  const handleChange = (e) => {
-    const { name, value } = e.target
-    setFormData(prev => ({ ...prev, [name]: value }))
-  }
+  const onSubmit = async (data) => {
+    const { ...signupData } = data
+    signupData.status = 'ACTIVE'
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-
-    if (formData.password !== formData.confirmPassword) {
-      toast.error('Passwords do not match', {
-        position: 'top-right',
-        autoClose: 1000
-      })
-      return
-    }
-
-    if (formData.password.length < 6) {
-      toast.error('Password must be at least 6 characters', {
-        position: 'top-right',
-        autoClose: 1000
-      })
-      return
-    }
+    console.log('Signup request data:', signupData)
 
     try {
-      const result = await signup({
-        name: formData.name,
-        gender: formData.gender,
-        mobile: formData.mobile,
-        password: formData.password,
-        status: formData.status
-      }).unwrap()
+      const result = await signup(signupData).unwrap()
       
       console.log('Signup response:', result)
       
-      // API response: { data: { accessToken, user }, code, message }
-      dispatch(setCredentials({
-        accessToken: result.data.accessToken,
-        user: result.data.user
-      }))
-      
-      toast.success(result.message || 'Account created successfully!', {
-        position: 'top-right',
-        autoClose: 1000
-      }) 
-      navigate('/')
+      if (result.code === 200 || result.code === 201) {
+        if (result.data && result.data.accessToken) {
+          dispatch(setCredentials({
+            accessToken: result.data.accessToken
+          }))
+          
+          toast.success(result.message || 'Account created successfully!', {
+            position: 'top-right',
+            autoClose: 1000
+          })
+          
+          navigate('/')
+        } else {
+          toast.error('Signup successful but no token received. Please login.', {
+            position: 'top-right',
+            autoClose: 1000
+          })
+          navigate('/auth/login')
+        }
+      } else {
+        toast.error(result.message || 'Signup failed', {
+          position: 'top-right',
+          autoClose: 1000
+        })
+      }
     } catch (err) {
       console.error('Signup error:', err)
       const errorMessage = err?.data?.message || err?.message || 'Failed to create account'
@@ -77,6 +89,7 @@ const Signup = () => {
       })
     }
   }
+
   return (
     <div className="login-container d-flex align-items-center justify-content-center py-4">
       <div className="card shadow-lg border-0" style={{ maxWidth: '450px', width: '100%' }}>
@@ -92,7 +105,7 @@ const Signup = () => {
           </div>
 
           {/* Signup Form */}
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit(onSubmit)}>
             {/* Name Input */}
             <div className="mb-3">
               <label className="form-label fw-semibold" htmlFor="name">Full Name</label>
@@ -100,17 +113,33 @@ const Signup = () => {
                 <span className="input-group-text bg-white">
                   <FontAwesomeIcon icon={faUser} className="text-muted" />
                 </span>
-                <input type="text" id='name' name='name' value={formData.name} onChange={handleChange} className="form-control shadow-none" placeholder="Enter your name" required />
+                <input 
+                  type="text" 
+                  id='name'
+                  {...register('name')}
+                  className={`form-control shadow-none ${errors.name ? 'is-invalid' : ''}`}
+                  placeholder="Enter your name"
+                />
               </div>
+              {errors.name && (
+                <div className="text-danger small mt-1">{errors.name.message}</div>
+              )}
             </div>
 
             {/* Gender Input */}
             <div className="mb-3">
               <label className="form-label fw-semibold" htmlFor="gender">Gender</label>
-              <select id='gender' name='gender' value={formData.gender} onChange={handleChange} className="form-select shadow-none" required>
+              <select 
+                id='gender'
+                {...register('gender')}
+                className={`form-select shadow-none ${errors.gender ? 'is-invalid' : ''}`}
+              >
                 <option value="MALE">Male</option>
                 <option value="FEMALE">Female</option>
               </select>
+              {errors.gender && (
+                <div className="text-danger small mt-1">{errors.gender.message}</div>
+              )}
             </div>
 
             {/* Mobile Input */}
@@ -120,8 +149,17 @@ const Signup = () => {
                 <span className="input-group-text bg-white">
                   <FontAwesomeIcon icon={faPhone} className="text-muted" />
                 </span>
-                <input type="text" id='mobile' name='mobile' value={formData.mobile} onChange={handleChange} className="form-control shadow-none" placeholder="01899999991" required />
+                <input 
+                  type="text" 
+                  id='mobile'
+                  {...register('mobile')}
+                  className={`form-control shadow-none ${errors.mobile ? 'is-invalid' : ''}`}
+                  placeholder="01899999991"
+                />
               </div>
+              {errors.mobile && (
+                <div className="text-danger small mt-1">{errors.mobile.message}</div>
+              )}
             </div>
 
             {/* Password Input */}
@@ -131,8 +169,17 @@ const Signup = () => {
                 <span className="input-group-text bg-white">
                   <FontAwesomeIcon icon={faLock} className="text-muted" />
                 </span>
-                <input type="password" id='password' name='password' value={formData.password} onChange={handleChange} className="form-control shadow-none" placeholder="Enter your password" required />
+                <input 
+                  type="password" 
+                  id='password'
+                  {...register('password')}
+                  className={`form-control shadow-none ${errors.password ? 'is-invalid' : ''}`}
+                  placeholder="Enter your password"
+                />
               </div>
+              {errors.password && (
+                <div className="text-danger small mt-1">{errors.password.message}</div>
+              )}
             </div>
 
             {/* Confirm Password Input */}
@@ -142,8 +189,17 @@ const Signup = () => {
                 <span className="input-group-text bg-white">
                   <FontAwesomeIcon icon={faLock} className="text-muted" />
                 </span>
-                <input type="password" id='confirmPassword' name='confirmPassword' value={formData.confirmPassword} onChange={handleChange} className="form-control shadow-none" placeholder="Confirm your password" required />
+                <input 
+                  type="password" 
+                  id='confirmPassword'
+                  {...register('confirmPassword')}
+                  className={`form-control shadow-none ${errors.confirmPassword ? 'is-invalid' : ''}`}
+                  placeholder="Confirm your password"
+                />
               </div>
+              {errors.confirmPassword && (
+                <div className="text-danger small mt-1">{errors.confirmPassword.message}</div>
+              )}
             </div>
 
             {/* Submit Button */}

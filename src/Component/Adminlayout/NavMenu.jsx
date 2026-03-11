@@ -1,16 +1,20 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faSearch, faBell, faEnvelope, faHome, faSignOutAlt, faUser } from '@fortawesome/free-solid-svg-icons'
+import { faSearch, faBell, faEnvelope, faHome, faSignOutAlt, faUser, faCircleUser } from '@fortawesome/free-solid-svg-icons'
 import { Link, useNavigate } from 'react-router-dom'
 import { useDispatch } from 'react-redux'
 import { logout } from '../../store/authSlice'
+import { useProfileQuery } from '../../store/authApi'
 import { toast } from 'react-toastify'
 import { useState } from 'react'
-import { Modal, Button } from 'react-bootstrap'
+import { Modal, Button, Dropdown } from 'react-bootstrap'
 
 const NavMenu = () => {
   const navigate = useNavigate()
   const dispatch = useDispatch()
   const [showLogoutModal, setShowLogoutModal] = useState(false)
+  
+  // Fetch user profile
+  const { data: profileData, isLoading: isLoadingProfile } = useProfileQuery()
 
   const handleLogoutClick = () => {
     setShowLogoutModal(true)
@@ -32,7 +36,7 @@ const NavMenu = () => {
 
   return (
     <nav className="navbar navbar-expand-lg navbar-light bg-white shadow-sm sticky-top">
-      <div className="container-fluid px-4">
+      <div className="container-fluid px-4 py-2">
         {/* Logo/Brand */}
         <Link to="/admin/dashboard" className="navbar-brand fw-bold text-primary fs-4">
           MovieBD Admin
@@ -78,10 +82,60 @@ const NavMenu = () => {
               5
             </span>
           </button>
-          {/* user Icon */}
-          <div className="user-avatar bg-primary text-white rounded-circle d-flex align-items-center justify-content-center">
-            <FontAwesomeIcon icon={faUser} />
-          </div>
+
+          {/* User Profile Dropdown */}
+          <Dropdown align="end">
+            <Dropdown.Toggle   className="text-decoration-none p-0 border-0 shadow-none d-flex align-items-center justify-content-center" style={{ background: 'none' }}>
+                <div className="bg-success text-white rounded-circle d-flex align-items-center justify-content-center" style={{ width: '40px', height: '40px' }}>
+                  <FontAwesomeIcon icon={faUser} />
+                </div>
+            </Dropdown.Toggle>
+
+            <Dropdown.Menu className="shadow-lg border-0" style={{ minWidth: '280px' }}>
+              {isLoadingProfile ? (
+                <div className="text-center py-3">
+                  <div className="spinner-border spinner-border-sm text-primary" role="status">
+                    <span className="visually-hidden">Loading...</span>
+                  </div>
+                </div>
+              ) : profileData?.data ? (
+                <>
+                  <div className="px-3 py-3 border-bottom">
+                    <div className="d-flex align-items-center gap-3">
+                      <div className="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style={{ width: '50px', height: '50px' }}>
+                        <FontAwesomeIcon icon={faCircleUser} size="2x" />
+                      </div>
+                      <div>
+                        <h6 className="mb-0 fw-bold">{profileData.data.name}</h6>
+                        <small className="text-muted">{profileData.data.mobile}</small>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="px-3 py-2">
+                    <div className="mb-2 d-flex justify-content-between border-bottom py-2">
+                      <small className="text-muted">Role:</small>
+                      <span className="fw-semibold badge bg-primary">{profileData.data.role}</span>
+                    </div>
+                    <div className="mb-2 d-flex justify-content-between border-bottom py-2">
+                      <small className="text-muted">Gender:</small>
+                      <span className="fw-semibold badge bg-primary">{profileData.data.gender}</span>
+                    </div>
+                    <div className="mb-2 d-flex justify-content-between">
+                      <small className="text-muted">Status:</small>
+                      <div className="fw-semibold">
+                        <span className={`badge ${profileData.data.status === 'ACTIVE' ? 'bg-success' : 'bg-secondary'}`}>
+                          {profileData.data.status}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <Dropdown.Item disabled>No user data</Dropdown.Item>
+              )}
+            </Dropdown.Menu>
+          </Dropdown>
         </div>
       </div>
 

@@ -9,6 +9,8 @@ import Signup from './Pages/Signup'
 import AllMovies from './Pages/AllMovies'
 import UploadMovie from './Pages/UploadMovie'
 import MovieList from './Pages/MovieList'
+import Categories from './Pages/Categories'
+import Genres from './Pages/Genres'
 import AppLayout from './Component/HomeLayout/AppLayout'
 import AdminAppLayout from './Component/Adminlayout/AdminAppLayout'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -64,7 +66,11 @@ function App() {
         },
         {
           path: 'categories',
-          element: <div className="alert alert-info">Categories page coming soon...</div>
+          element: <Categories />
+        },
+        {
+          path: 'genres',
+          element: <Genres />
         },
         {
           path: 'settings',
