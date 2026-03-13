@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faEdit, faTrash, faStar, faEye } from '@fortawesome/free-solid-svg-icons'
+import { faEdit, faTrash } from '@fortawesome/free-solid-svg-icons'
 import { useGetMoviesQuery, useDeleteMovieMutation, useUpdateMovieMutation } from '../store/moviesApi'
 import { Modal, Button, Form } from 'react-bootstrap'
 import { toast } from 'react-toastify'
 
 const MovieList = () => {
-  const { data: movies = [], isLoading, isError } = useGetMoviesQuery()
+  const { data: response, isLoading, isError } = useGetMoviesQuery()
+  const movies = response?.data
   const [deleteMovie, { isLoading: isDeleting }] = useDeleteMovieMutation()
   const [updateMovie, { isLoading: isUpdating }] = useUpdateMovieMutation()
   
@@ -17,11 +18,6 @@ const MovieList = () => {
   const [formData, setFormData] = useState({
     title: '',
     subtitle: '',
-    year: '',
-    category: '',
-    quality: '',
-    rating: '',
-    image: '',
     description: '',
   })
 
@@ -30,11 +26,6 @@ const MovieList = () => {
     setFormData({
       title: movie.title,
       subtitle: movie.subtitle || '',
-      year: movie.year,
-      category: movie.category,
-      quality: movie.quality,
-      rating: movie.rating,
-      image: movie.image,
       description: movie.description || '',
     })
     setShowModal(true)
@@ -55,14 +46,8 @@ const MovieList = () => {
     
     try {
       await updateMovie({
-        id: selectedMovie.id,
+        id: selectedMovie._id,
         ...formData,
-        year: parseInt(formData.year),
-        rating: parseFloat(formData.rating),
-        type: selectedMovie.type,
-        badge: selectedMovie.badge,
-        time: selectedMovie.time,
-        views: selectedMovie.views,
       }).unwrap()
       
       toast.success('Movie updated successfully!', {
@@ -71,7 +56,7 @@ const MovieList = () => {
       })
       handleClose()
     } catch (error) {
-      toast.error('Failed to update movie: ' + error.message, {
+      toast.error('Failed to update movie: ' + (error?.data?.message || error.message), {
         position: 'top-right',
         autoClose: 1000
       })
@@ -85,7 +70,7 @@ const MovieList = () => {
 
   const handleConfirmDelete = async () => {
     try {
-      await deleteMovie(movieToDelete.id).unwrap()
+      await deleteMovie(movieToDelete._id).unwrap()
       toast.success('Movie deleted successfully!', {
         position: 'top-right',
         autoClose: 1000
@@ -93,7 +78,7 @@ const MovieList = () => {
       setShowDeleteModal(false)
       setMovieToDelete(null)
     } catch (error) {
-      toast.error('Failed to delete movie: ' + error.message, {
+      toast.error('Failed to delete movie: ' + (error?.data?.message || error.message), {
         position: 'top-right',
         autoClose: 1000
       })
@@ -174,37 +159,46 @@ const MovieList = () => {
             <table className="table table-hover mb-0">
               <thead className="table-light">
                 <tr>
-                  <th>ID</th>
+                  <th>Poster</th>
                   <th>Title</th>
-                  <th>Year</th>
+                  <th>Country</th>
                   <th>Category</th>
-                  <th>Quality</th>
-                  <th>Rating</th>
-                  <th>Views</th>
+                  <th>Languages</th>
+                  <th>Featured</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {movies.map((movie) => (
-                  <tr key={movie.id}>
-                    <td className="align-middle">{movie.id}</td>
-                    <td className="align-middle fw-semibold">{movie.title}</td>
-                    <td className="align-middle">{movie.year}</td>
+                  <tr key={movie._id}>
                     <td className="align-middle">
-                      <span className="badge bg-info">{movie.category}</span>
+                      <img 
+                        src={movie.posterUrl || movie.thumbnails?.[0]} 
+                        alt={movie.title}
+                        style={{ width: '50px', height: '70px', objectFit: 'cover', borderRadius: '4px' }}
+                      />
                     </td>
                     <td className="align-middle">
-                      <span className="badge bg-success">{movie.quality}</span>
+                      <div className="fw-semibold">{movie.title}</div>
+                      <small className="text-muted">{movie.subtitle}</small>
                     </td>
                     <td className="align-middle">
-                      <span className="badge bg-warning text-dark">
-                        <FontAwesomeIcon icon={faStar} className="me-1" />
-                        {movie.rating}
-                      </span>
+                      <span className="badge bg-info">{movie.country || 'N/A'}</span>
                     </td>
                     <td className="align-middle">
-                      <FontAwesomeIcon icon={faEye} className="text-muted me-1" />
-                      {movie.views}
+                      <span className="badge bg-primary">{movie.categoryId || 'N/A'}</span>
+                    </td>
+                    <td className="align-middle">
+                      {movie.languages?.slice(0, 2).map((lang, idx) => (
+                        <span key={idx} className="badge bg-secondary me-1">{lang}</span>
+                      ))}
+                    </td>
+                    <td className="align-middle">
+                      {movie.isFeatured ? (
+                        <span className="badge bg-warning">Featured</span>
+                      ) : (
+                        <span className="badge bg-light text-dark">Regular</span>
+                      )}
                     </td>
                     <td className="align-middle">
                       <button 
@@ -276,80 +270,6 @@ const MovieList = () => {
                     name="subtitle"
                     value={formData.subtitle}
                     onChange={handleChange}
-                  />
-                </Form.Group>
-              </div>
-
-              <div className="col-md-6 mb-3">
-                <Form.Group>
-                  <Form.Label>Release Year</Form.Label>
-                  <Form.Control
-                    type="number"
-                    name="year"
-                    value={formData.year}
-                    onChange={handleChange}
-                    required
-                  />
-                </Form.Group>
-              </div>
-
-              <div className="col-md-6 mb-3">
-                <Form.Group>
-                  <Form.Label>Category</Form.Label>
-                  <Form.Select
-                    name="category"
-                    value={formData.category}
-                    onChange={handleChange}
-                    required
-                  >
-                    <option value="">Select Category</option>
-                    <option value="Animation">Animation</option>
-                    <option value="Action">Action</option>
-                    <option value="Comedy">Comedy</option>
-                    <option value="Drama">Drama</option>
-                    <option value="Sci-Fi">Sci-Fi</option>
-                    <option value="Crime">Crime</option>
-                  </Form.Select>
-                </Form.Group>
-              </div>
-
-              <div className="col-md-6 mb-3">
-                <Form.Group>
-                  <Form.Label>Quality</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="quality"
-                    value={formData.quality}
-                    onChange={handleChange}
-                    required
-                  />
-                </Form.Group>
-              </div>
-
-              <div className="col-md-6 mb-3">
-                <Form.Group>
-                  <Form.Label>Rating</Form.Label>
-                  <Form.Control
-                    type="number"
-                    step="0.1"
-                    max="10"
-                    name="rating"
-                    value={formData.rating}
-                    onChange={handleChange}
-                    required
-                  />
-                </Form.Group>
-              </div>
-
-              <div className="col-12 mb-3">
-                <Form.Group>
-                  <Form.Label>Movie Poster URL</Form.Label>
-                  <Form.Control
-                    type="url"
-                    name="image"
-                    value={formData.image}
-                    onChange={handleChange}
-                    required
                   />
                 </Form.Group>
               </div>

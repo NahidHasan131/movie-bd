@@ -1,6 +1,9 @@
+import { useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faUpload, faFilm } from '@fortawesome/free-solid-svg-icons'
-import { useAddMovieMutation } from '../store/moviesApi'
+import { faUpload, faFilm, faTrash } from '@fortawesome/free-solid-svg-icons'
+import { useAddMovieMutation, useUploadFileMutation } from '../store/moviesApi'
+import { useGetCategoriesQuery } from '../store/categoryApi'
+import { useGetGenresQuery } from '../store/categoryApi'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import { useForm } from 'react-hook-form'
@@ -8,73 +11,187 @@ import { yupResolver } from '@hookform/resolvers/yup'
 import * as yup from 'yup'
 
 const movieSchema = yup.object({
-  title: yup.string()
-    .required('Movie title is required')
-    .min(2, 'Title must be at least 2 characters'),
+  title: yup.string().required('Movie title is required').min(2, 'Title must be at least 2 characters'),
   subtitle: yup.string(),
-  year: yup.number()
-    .required('Release year is required')
-    .min(1900, 'Year must be after 1900')
-    .max(new Date().getFullYear() + 5, 'Year cannot be too far in the future')
-    .typeError('Year must be a number'),
-  category: yup.string()
-    .required('Category is required'),
-  quality: yup.string()
-    .required('Quality is required'),
-  rating: yup.number()
-    .required('Rating is required')
-    .min(0, 'Rating must be at least 0')
-    .max(10, 'Rating cannot exceed 10')
-    .typeError('Rating must be a number'),
-  image: yup.string()
-    .required('Movie poster URL is required')
-    .url('Must be a valid URL'),
-  description: yup.string()
-    .required('Description is required')
-    .min(10, 'Description must be at least 10 characters')
+  categoryId: yup.string().required('Category is required'),
+  description: yup.string().required('Description is required').min(10, 'Description must be at least 10 characters'),
+  country: yup.string(), director: yup.string(), writer: yup.string(),
+  trailerLink: yup.string().url('Must be a valid URL'),
+  releaseDate: yup.date().required('Release date is required'),
+  slug: yup.string().required('Slug is required').matches(/^[a-z0-9-]+$/, 'Slug must be lowercase letters, numbers, and hyphens only'),
+  isFeatured: yup.boolean()
 }).required()
 
 const UploadMovie = () => {
   const navigate = useNavigate()
   const [addMovie, { isLoading }] = useAddMovieMutation()
-  
-  const { register, handleSubmit, formState: { errors }, reset } = useForm({
+  const [uploadFile, { isLoading: isUploading }] = useUploadFileMutation()
+  const { data: categoriesData } = useGetCategoriesQuery()
+  const { data: genresData } = useGetGenresQuery()
+
+  const [posterFile, setPosterFile] = useState(null)
+  const [posterPreview, setPosterPreview] = useState('')
+  const [thumbnailFiles, setThumbnailFiles] = useState([])
+  const [screenshotFiles, setScreenshotFiles] = useState([])
+  const [cast, setCast] = useState([''])
+  const [languages, setLanguages] = useState([''])
+  const [tags, setTags] = useState([''])
+  const [selectedGenres, setSelectedGenres] = useState([])
+  const [downloadLinks, setDownloadLinks] = useState([{ quality: '', url: '', language: '', size: '' }])
+
+  const { register, handleSubmit, formState: { errors } } = useForm({
     resolver: yupResolver(movieSchema),
     defaultValues: {
       title: '',
       subtitle: '',
-      year: new Date().getFullYear(),
-      category: '',
-      quality: '',
-      rating: '',
-      image: '',
-      description: ''
+      categoryId: '',
+      description: '',
+      country: '',
+      director: '',
+      writer: '',
+      trailerLink: '',
+      releaseDate: new Date().toISOString().split('T')[0],
+      slug: '',
+      isFeatured: false
     }
   })
 
+
+  const handlePosterChange = (e) => {
+    const file = e.target.files[0]
+    if (file) {
+      setPosterFile(file)
+      setPosterPreview(URL.createObjectURL(file))
+    }
+  }
+
+  const handleThumbnailsChange = (e) => {
+    const files = Array.from(e.target.files)
+    setThumbnailFiles(files)
+  }
+
+  const handleScreenshotsChange = (e) => {
+    const files = Array.from(e.target.files)
+    setScreenshotFiles(files)
+  }
+
+  const uploadFileToServer = async (file) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    
+    try {
+      const result = await uploadFile(formData).unwrap()
+
+      console.log("Upload result:", result)
+      
+      // Try different possible response structures
+      const url = result?.data?.data?.directViewLink || 
+                  result?.data?.directViewLink || 
+                  result?.directViewLink ||
+                  result?.data?.url ||
+                  result?.url ||
+                  result?.data?.data?.url
+      
+      if (!url) {
+        console.error('Could not find URL in response:', result)
+        throw new Error('File uploaded but URL not found in response')
+      }
+      
+      console.log("Extracted URL:", url)
+      return url
+    } catch (error) {
+      console.error('File upload error:', error)
+      throw error
+    }
+  }
+
   const onSubmit = async (data) => {
     try {
-      await addMovie({
+      // Upload poster
+      let posterUrl = ''
+      if (posterFile) {
+        toast.info('Uploading poster...', { autoClose: 1000 })
+        posterUrl = await uploadFileToServer(posterFile)
+      }
+
+      // Upload thumbnails
+      const thumbnailUrls = []
+      if (thumbnailFiles.length > 0) {
+        toast.info('Uploading thumbnails...', { autoClose: 1000 })
+        for (const file of thumbnailFiles) {
+          try {
+            const url = await uploadFileToServer(file)
+            if (url) thumbnailUrls.push(url)
+          } catch (error) {
+            console.error('Failed to upload thumbnail:', error)
+          }
+        }
+      }
+
+      // Upload screenshots
+      const screenshotUrls = []
+      if (screenshotFiles.length > 0) {
+        toast.info('Uploading screenshots...', { autoClose: 1000 })
+        for (const file of screenshotFiles) {
+          try {
+            const url = await uploadFileToServer(file)
+            if (url) screenshotUrls.push(url)
+          } catch (error) {
+            console.error('Failed to upload screenshot:', error)
+          }
+        }
+      }
+
+      // Prepare movie data - only include arrays if they have valid values
+      const movieData = {
         ...data,
-        type: 'Full Movie Download',
-        badge: 'BluRay',
-        views: '0',
-        time: 'Just now'
-      }).unwrap()
+        cast: cast.filter(c => c.trim()),
+        languages: languages.filter(l => l.trim()),
+        tags: tags.filter(t => t.trim()),
+        genresId: selectedGenres,
+        links: downloadLinks.filter(link => link.url && link.quality),
+        trailerLink: data.trailerLink ? [data.trailerLink] : []
+      }
+
+      // Only add these fields if they have values
+      if (posterUrl) movieData.posterUrl = posterUrl
+      if (thumbnailUrls.length > 0) movieData.thumbnails = thumbnailUrls
+      if (screenshotUrls.length > 0) movieData.screenshots = screenshotUrls
+
+      console.log('Submitting movie data:', movieData)
+
+      await addMovie(movieData).unwrap()
       
       toast.success('Movie uploaded successfully!', {
         position: 'top-right',
-        autoClose: 3000
+        autoClose: 1000
       })
-      reset()
       navigate('/admin/movie-list')
     } catch (error) {
-      toast.error('Failed to upload movie: ' + error.message, {
+      console.error('Movie upload error:', error)
+      toast.error('Failed to upload movie: ' + (error?.data?.message || error.message), {
         position: 'top-right',
-        autoClose: 3000
+        autoClose: 1000
       })
     }
   }
+
+  const addArrayField = (setter, currentArray) => {
+    setter([...currentArray, ''])
+  }
+
+  const updateArrayField = (setter, currentArray, index, value) => {
+    const newArray = [...currentArray]
+    newArray[index] = value
+    setter(newArray)
+  }
+
+  const removeArrayField = (setter, currentArray, index) => {
+    setter(currentArray.filter((_, i) => i !== index))
+  }
+
+  const categories = categoriesData?.data || []
+  const genres = genresData?.data || []
 
   return (
     <div>
@@ -86,133 +203,244 @@ const UploadMovie = () => {
         <p className="text-muted">Add a new movie to the database</p>
       </div>
 
-      {/* Upload Form */}
       <div className="card shadow-sm border-0">
         <div className="card-body p-4">
           <form onSubmit={handleSubmit(onSubmit)}>
             <div className="row">
-              {/* Movie Title */}
+              {/* Title */}
               <div className="col-md-6 mb-3">
-                <label className="form-label fw-semibold">Movie Title</label>
-                <input 
-                  type="text"
-                  {...register('title')}
-                  className={`form-control ${errors.title ? 'is-invalid' : ''}`}
-                  placeholder="Enter movie title"
-                />
-                {errors.title && (
-                  <div className="invalid-feedback">{errors.title.message}</div>
-                )}
+                <label className="form-label fw-semibold">Movie Title *</label>
+                <input type="text" {...register('title')} className={`form-control ${errors.title ? 'is-invalid' : ''}`} placeholder="Enter movie title"/>
+                {errors.title && <div className="invalid-feedback">{errors.title.message}</div>}
               </div>
 
               {/* Subtitle */}
               <div className="col-md-6 mb-3">
                 <label className="form-label fw-semibold">Subtitle</label>
-                <input 
-                  type="text"
-                  {...register('subtitle')}
-                  className="form-control"
-                  placeholder="[Hindi Dubbed & English]"
-                />
-              </div>
-
-              {/* Release Year */}
-              <div className="col-md-6 mb-3">
-                <label className="form-label fw-semibold">Release Year</label>
-                <input 
-                  type="number"
-                  {...register('year')}
-                  className={`form-control ${errors.year ? 'is-invalid' : ''}`}
-                  placeholder="2024"
-                />
-                {errors.year && (
-                  <div className="invalid-feedback">{errors.year.message}</div>
-                )}
+                <input type="text" {...register('subtitle')} className="form-control" placeholder="Enter Movie Subtitle"/>
               </div>
 
               {/* Category */}
               <div className="col-md-6 mb-3">
-                <label className="form-label fw-semibold">Category</label>
-                <select 
-                  {...register('category')}
-                  className={`form-select ${errors.category ? 'is-invalid' : ''}`}
-                >
+                <label className="form-label fw-semibold">Category *</label>
+                <select {...register('categoryId')} className={`form-select ${errors.categoryId ? 'is-invalid' : ''}`}>
                   <option value="">Select Category</option>
-                  <option value="Animation">Animation</option>
-                  <option value="Action">Action</option>
-                  <option value="Comedy">Comedy</option>
-                  <option value="Drama">Drama</option>
-                  <option value="Sci-Fi">Sci-Fi</option>
-                  <option value="Crime">Crime</option>
+                  {categories.map(cat => (
+                    <option key={cat._id} value={cat._id}>{cat.name}</option>
+                  ))}
                 </select>
-                {errors.category && (
-                  <div className="invalid-feedback">{errors.category.message}</div>
-                )}
+                {errors.categoryId && <div className="invalid-feedback">{errors.categoryId.message}</div>}
               </div>
 
-              {/* Quality */}
+              {/* Slug */}
               <div className="col-md-6 mb-3">
-                <label className="form-label fw-semibold">Quality</label>
-                <input 
-                  type="text"
-                  {...register('quality')}
-                  className={`form-control ${errors.quality ? 'is-invalid' : ''}`}
-                  placeholder="BluRay 480p, 720p & 1080p"
-                />
-                {errors.quality && (
-                  <div className="invalid-feedback">{errors.quality.message}</div>
-                )}
+                <label className="form-label fw-semibold">Slug *</label>
+                <input type="text" {...register('slug')} className={`form-control ${errors.slug ? 'is-invalid' : ''}`} placeholder="Enter movie slug"/>
+                {errors.slug && <div className="invalid-feedback">{errors.slug.message}</div>}
               </div>
 
-              {/* Rating */}
+              {/* Country */}
+              <div className="col-md-4 mb-3">
+                <label className="form-label fw-semibold">Country</label>
+                <input type="text" {...register('country')} className="form-control" placeholder="Bangladesh"/>
+              </div>
+
+              {/* Director */}
+              <div className="col-md-4 mb-3">
+                <label className="form-label fw-semibold">Director</label>
+                <input type="text" {...register('director')} className="form-control" placeholder="Director name"/>
+              </div>
+
+              {/* Writer */}
+              <div className="col-md-4 mb-3">
+                <label className="form-label fw-semibold">Writer</label>
+                <input type="text" {...register('writer')} className="form-control" placeholder="Writer name"/>
+              </div>
+
+              {/* Release Date */}
               <div className="col-md-6 mb-3">
-                <label className="form-label fw-semibold">Rating</label>
-                <input 
-                  type="number"
-                  step="0.1"
-                  max="10"
-                  {...register('rating')}
-                  className={`form-control ${errors.rating ? 'is-invalid' : ''}`}
-                  placeholder="8.5"
-                />
-                {errors.rating && (
-                  <div className="invalid-feedback">{errors.rating.message}</div>
+                <label className="form-label fw-semibold">Release Date *</label>
+                <input type="date" {...register('releaseDate')} className={`form-control ${errors.releaseDate ? 'is-invalid' : ''}`}/>
+                {errors.releaseDate && <div className="invalid-feedback">{errors.releaseDate.message}</div>}
+              </div>
+
+              {/* Trailer Link */}
+              <div className="col-md-6 mb-3">
+                <label className="form-label fw-semibold">Trailer Link (YouTube)</label>
+                <input type="url" {...register('trailerLink')} className={`form-control ${errors.trailerLink ? 'is-invalid' : ''}`} placeholder="https://www.youtube.com/watch?v=..."/>
+                {errors.trailerLink && <div className="invalid-feedback">{errors.trailerLink.message}</div>}
+              </div>
+
+              {/* Poster Upload */}
+              <div className="col-md-6 mb-3">
+                <label className="form-label fw-semibold">Movie Poster *</label>
+                <input type="file" accept="image/*" onChange={handlePosterChange} className="form-control"/>
+                {posterPreview && (
+                  <img src={posterPreview} alt="Poster preview" className="mt-2" style={{ maxHeight: '150px' }} />
                 )}
               </div>
 
-              {/* Movie Poster URL */}
+              {/* Thumbnails Upload */}
+              <div className="col-md-6 mb-3">
+                <label className="form-label fw-semibold">Thumbnails (Multiple)</label>
+                <input type="file" accept="image/*" multiple onChange={handleThumbnailsChange} className="form-control"/>
+                <small className="text-muted">{thumbnailFiles.length} file(s) selected</small>
+              </div>
+
+              {/* Screenshots Upload */}
               <div className="col-12 mb-3">
-                <label className="form-label fw-semibold">Movie Poster URL</label>
-                <input 
-                  type="url"
-                  {...register('image')}
-                  className={`form-control ${errors.image ? 'is-invalid' : ''}`}
-                  placeholder="https://example.com/poster.jpg"
-                />
-                {errors.image && (
-                  <div className="invalid-feedback">{errors.image.message}</div>
-                )}
+                <label className="form-label fw-semibold">Screenshots (Multiple)</label>
+                <input type="file" accept="image/*" multiple onChange={handleScreenshotsChange} className="form-control"/>
+                <small className="text-muted">{screenshotFiles.length} file(s) selected</small>
+              </div>
+
+              {/* Genres */}
+              <div className="col-12 mb-3">
+                <label className="form-label fw-semibold">Genres</label>
+                <div className="d-flex flex-wrap gap-2">
+                  {genres.map(genre => (
+                    <div key={genre._id} className="form-check">
+                      <input type="checkbox" className="form-check-input" id={`genre-${genre._id}`} checked={selectedGenres.includes(genre._id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedGenres([...selectedGenres, genre._id])
+                          } else {
+                            setSelectedGenres(selectedGenres.filter(id => id !== genre._id))
+                          }
+                        }}/>
+                      <label className="form-check-label" htmlFor={`genre-${genre._id}`}> {genre.name}</label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Cast */}
+              <div className="col-12 mb-3">
+                <label className="form-label fw-semibold">Cast</label>
+                {cast.map((member, index) => (
+                  <div key={index} className="input-group mb-2">
+                    <input type="text" value={member} onChange={(e) => updateArrayField(setCast, cast, index, e.target.value)} className="form-control" placeholder="Actor name"/>
+                    <button type="button" className="btn btn-outline-danger" onClick={() => removeArrayField(setCast, cast, index)}>
+                      <FontAwesomeIcon icon={faTrash}/>
+                    </button>
+                  </div>
+                ))}
+                <button type="button" className="btn btn-sm btn-outline-primary" onClick={() => addArrayField(setCast, cast)}>
+                  + Add Cast Member
+                </button>
+              </div>
+
+              {/* Languages */}
+              <div className="col-md-6 mb-3">
+                <label className="form-label fw-semibold">Languages</label>
+                {languages.map((lang, index) => (
+                  <div key={index} className="input-group mb-2">
+                    <input type="text" value={lang} onChange={(e) => updateArrayField(setLanguages, languages, index, e.target.value)} className="form-control" placeholder="Bangla"/>
+                    <button type="button" className="btn btn-outline-danger" onClick={() => removeArrayField(setLanguages, languages, index)}>
+                      <FontAwesomeIcon icon={faTrash} />
+                    </button>
+                  </div>
+                ))}
+                <button type="button" className="btn btn-sm btn-outline-primary" onClick={() => addArrayField(setLanguages, languages)}>
+                  + Add Language
+                </button>
+              </div>
+
+              {/* Tags */}
+              <div className="col-md-6 mb-3">
+                <label className="form-label fw-semibold">Tags</label>
+                {tags.map((tag, index) => (
+                  <div key={index} className="input-group mb-2">
+                    <input type="text" value={tag} onChange={(e) => updateArrayField(setTags, tags, index, e.target.value)} className="form-control" placeholder="action"/>
+                    <button type="button" className="btn btn-outline-danger" onClick={() => removeArrayField(setTags, tags, index)}>
+                      <FontAwesomeIcon icon={faTrash} />
+                    </button>
+                  </div>
+                ))}
+                <button type="button" className="btn btn-sm btn-outline-primary" onClick={() => addArrayField(setTags, tags)}>
+                  + Add Tag
+                </button>
+              </div>
+
+              {/* Download Links */}
+              <div className="col-12 mb-3">
+                <label className="form-label fw-semibold">Download Links</label>
+                {downloadLinks.map((link, index) => (
+                  <div key={index} className="card mb-2 p-3">
+                    <div className="row">
+                      <div className="col-md-3 mb-2">
+                        <input type="text" value={link.quality} onChange={(e) => {
+                            const newLinks = [...downloadLinks]
+                            newLinks[index].quality = e.target.value
+                            setDownloadLinks(newLinks)
+                          }}
+                          className="form-control" placeholder="Movie Quality" />
+                      </div>
+                      <div className="col-md-3 mb-2">
+                        <input type="text" value={link.language}
+                          onChange={(e) => {
+                            const newLinks = [...downloadLinks]
+                            newLinks[index].language = e.target.value
+                            setDownloadLinks(newLinks)
+                          }}
+                          className="form-control" placeholder="English"/>
+                      </div>
+                      <div className="col-md-2 mb-2">
+                        <input type="text" value={link.size}
+                          onChange={(e) => {
+                            const newLinks = [...downloadLinks]
+                            newLinks[index].size = e.target.value
+                            setDownloadLinks(newLinks)
+                          }}
+                          className="form-control" placeholder="Movie Size" />
+                      </div>
+                      <div className="col-md-3 mb-2">
+                        <input type="url" value={link.url}
+                          onChange={(e) => {
+                            const newLinks = [...downloadLinks]
+                            newLinks[index].url = e.target.value
+                            setDownloadLinks(newLinks)
+                          }}
+                          className="form-control" placeholder="Download URL"/>
+                      </div>
+                      <div className="col-md-1">
+                        <button type="button" className="btn btn-outline-danger"
+                          onClick={() => setDownloadLinks(downloadLinks.filter((_, i) => i !== index))}>
+                          <FontAwesomeIcon icon={faTrash} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                <button type="button"  className="btn btn-sm btn-outline-primary" 
+                  onClick={() => setDownloadLinks([...downloadLinks, { quality: '', url: '', language: '', size: '' }])}>
+                  + Add Download Link
+                </button>
               </div>
 
               {/* Description */}
               <div className="col-12 mb-3">
-                <label className="form-label fw-semibold">Description</label>
-                <textarea 
-                  {...register('description')}
-                  className={`form-control ${errors.description ? 'is-invalid' : ''}`}
-                  rows="4"
-                  placeholder="Enter movie description..."
-                ></textarea>
-                {errors.description && (
-                  <div className="invalid-feedback">{errors.description.message}</div>
-                )}
+                <label className="form-label fw-semibold">Description *</label>
+                <textarea {...register('description')} className={`form-control ${errors.description ? 'is-invalid' : ''}`}
+                  rows="4" placeholder="Enter movie description..."></textarea>
+                {errors.description && <div className="invalid-feedback">{errors.description.message}</div>}
+              </div>
+
+              {/* Featured */}
+              <div className="col-12 mb-3">
+                <div className="form-check form-switch">
+                  <input type="checkbox" {...register('isFeatured')} className="form-check-input" id="isFeatured"/>
+                  <label className="form-check-label" htmlFor="isFeatured">
+                    Featured Movie
+                  </label>
+                </div>
               </div>
 
               {/* Submit Button */}
               <div className="col-12">
-                <button type="submit" className="btn btn-primary px-5" disabled={isLoading}>
+                <button type="submit" className="btn btn-primary px-5" disabled={isLoading || isUploading}>
                   <FontAwesomeIcon icon={faFilm} className="me-2" />
-                  {isLoading ? 'Uploading...' : 'Upload Movie'}
+                  {isLoading || isUploading ? 'Uploading...' : 'Upload Movie'}
                 </button>
               </div>
             </div>

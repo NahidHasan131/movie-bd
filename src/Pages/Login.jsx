@@ -35,7 +35,6 @@ const Login = () => {
   const onSubmit = async (data) => {
     try {
       const result = await login(data).unwrap()
-      
       console.log('Login response:', result)
       
       dispatch(setCredentials({
@@ -79,13 +78,7 @@ const Login = () => {
                 <span className="input-group-text bg-white">
                   <FontAwesomeIcon icon={faEnvelope} className="text-muted" />
                 </span>
-                <input 
-                  type="text" 
-                  id='mobile'
-                  {...register('mobile')}
-                  className={`form-control shadow-none ${errors.mobile ? 'is-invalid' : ''}`}
-                  placeholder="Enter mobile number"
-                />
+                <input type="text" id='mobile' {...register('mobile')} className={`form-control shadow-none ${errors.mobile ? 'is-invalid' : ''}`} placeholder="Enter mobile number"/>
               </div>
               {errors.mobile && (
                 <div className="text-danger small mt-1">{errors.mobile.message}</div>
@@ -99,13 +92,7 @@ const Login = () => {
                 <span className="input-group-text bg-white">
                   <FontAwesomeIcon icon={faLock} className="text-muted" />
                 </span>
-                <input 
-                  type="password" 
-                  id='password'
-                  {...register('password')}
-                  className={`form-control shadow-none ${errors.password ? 'is-invalid' : ''}`}
-                  placeholder="Enter password"
-                />
+                <input type="password" id='password' {...register('password')} className={`form-control shadow-none ${errors.password ? 'is-invalid' : ''}`} placeholder="Enter password"/>
               </div>
               {errors.password && (
                 <div className="text-danger small mt-1">{errors.password.message}</div>

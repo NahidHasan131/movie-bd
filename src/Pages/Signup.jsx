@@ -113,13 +113,7 @@ const Signup = () => {
                 <span className="input-group-text bg-white">
                   <FontAwesomeIcon icon={faUser} className="text-muted" />
                 </span>
-                <input 
-                  type="text" 
-                  id='name'
-                  {...register('name')}
-                  className={`form-control shadow-none ${errors.name ? 'is-invalid' : ''}`}
-                  placeholder="Enter your name"
-                />
+                <input type="text" id='name' {...register('name')} className={`form-control shadow-none ${errors.name ? 'is-invalid' : ''}`} placeholder="Enter your name"/>
               </div>
               {errors.name && (
                 <div className="text-danger small mt-1">{errors.name.message}</div>
@@ -129,11 +123,7 @@ const Signup = () => {
             {/* Gender Input */}
             <div className="mb-3">
               <label className="form-label fw-semibold" htmlFor="gender">Gender</label>
-              <select 
-                id='gender'
-                {...register('gender')}
-                className={`form-select shadow-none ${errors.gender ? 'is-invalid' : ''}`}
-              >
+              <select id='gender' {...register('gender')} className={`form-select shadow-none ${errors.gender ? 'is-invalid' : ''}`}>
                 <option value="MALE">Male</option>
                 <option value="FEMALE">Female</option>
               </select>
@@ -149,13 +139,7 @@ const Signup = () => {
                 <span className="input-group-text bg-white">
                   <FontAwesomeIcon icon={faPhone} className="text-muted" />
                 </span>
-                <input 
-                  type="text" 
-                  id='mobile'
-                  {...register('mobile')}
-                  className={`form-control shadow-none ${errors.mobile ? 'is-invalid' : ''}`}
-                  placeholder="01899999991"
-                />
+                <input type="text" id='mobile' {...register('mobile')} className={`form-control shadow-none ${errors.mobile ? 'is-invalid' : ''}`} placeholder="Enter Mobile Number"/>
               </div>
               {errors.mobile && (
                 <div className="text-danger small mt-1">{errors.mobile.message}</div>
@@ -169,13 +153,7 @@ const Signup = () => {
                 <span className="input-group-text bg-white">
                   <FontAwesomeIcon icon={faLock} className="text-muted" />
                 </span>
-                <input 
-                  type="password" 
-                  id='password'
-                  {...register('password')}
-                  className={`form-control shadow-none ${errors.password ? 'is-invalid' : ''}`}
-                  placeholder="Enter your password"
-                />
+                <input type="password" id='password' {...register('password')} className={`form-control shadow-none ${errors.password ? 'is-invalid' : ''}`} placeholder="Enter your password"/>
               </div>
               {errors.password && (
                 <div className="text-danger small mt-1">{errors.password.message}</div>
@@ -189,13 +167,7 @@ const Signup = () => {
                 <span className="input-group-text bg-white">
                   <FontAwesomeIcon icon={faLock} className="text-muted" />
                 </span>
-                <input 
-                  type="password" 
-                  id='confirmPassword'
-                  {...register('confirmPassword')}
-                  className={`form-control shadow-none ${errors.confirmPassword ? 'is-invalid' : ''}`}
-                  placeholder="Confirm your password"
-                />
+                <input type="password" id='confirmPassword' {...register('confirmPassword')} className={`form-control shadow-none ${errors.confirmPassword ? 'is-invalid' : ''}`} placeholder="Confirm your password"/>
               </div>
               {errors.confirmPassword && (
                 <div className="text-danger small mt-1">{errors.confirmPassword.message}</div>

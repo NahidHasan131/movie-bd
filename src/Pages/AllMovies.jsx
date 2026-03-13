@@ -5,7 +5,9 @@ import './AllMovies.css'
 
 
 const AllMovies = () => {
-  const { data: movies = [], isLoading, isError, error } = useGetMoviesQuery()
+  const { data: response, isLoading, isError, error } = useGetMoviesQuery()
+
+  const movies = response?.data
 
   if (isLoading) {
     return (
@@ -21,7 +23,16 @@ const AllMovies = () => {
     return (
       <div className="alert alert-danger m-5" role="alert">
         <h4 className="alert-heading">Error!</h4>
-        <p>{error?.message || 'Failed to load movies. Please try again later.'}</p>
+        <p>{error?.data?.message || error?.message || 'Failed to load movies. Please try again later.'}</p>
+      </div>
+    )
+  }
+
+  if (movies.length === 0) {
+    return (
+      <div className="alert alert-info m-5" role="alert">
+        <h4 className="alert-heading">No Movies Found</h4>
+        <p>There are no movies available at the moment.</p>
       </div>
     )
   }
@@ -49,13 +60,15 @@ const AllMovies = () => {
       {/* Movies Grid */}
       <div className="row g-4 px-5">
         {movies.map((movie) => (
-          <div key={movie.id} className="col-12 col-sm-6 col-md-4 col-lg-3">
+          <div key={movie._id} className="col-12 col-sm-6 col-md-4 col-lg-3">
             <div className="movie-card card border-0 shadow-sm h-100">
               <div className="movie-image-wrapper position-relative">
-                <img src={movie.image} alt={movie.title} className="card-img-top"/>
-                <span className="badge bg-info position-absolute top-0 end-0 m-2">
-                  {movie.badge}
-                </span>
+                <img src={movie.posterUrl || movie.thumbnails?.[0]} alt={movie.title} className="card-img-top"/>
+                {movie.isFeatured && (
+                  <span className="badge bg-warning position-absolute top-0 end-0 m-2">
+                    Featured
+                  </span>
+                )}
                 <div className="movie-overlay position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center">
                   <button className="btn btn-light rounded-circle play-btn">
                     <FontAwesomeIcon icon={faPlay} />
@@ -66,14 +79,24 @@ const AllMovies = () => {
               <div className="card-body">
                 <div className="d-flex align-items-center gap-2 mb-2">
                   <FontAwesomeIcon icon={faClock} className="text-muted small" />
-                  <span className="text-muted small">{movie.time}</span>
-                  <span className="badge bg-danger ms-auto small">Recently Added</span>
+                  <span className="text-muted small">
+                    {movie.releaseDate ? new Date(movie.releaseDate).getFullYear() : 'N/A'}
+                  </span>
+                  <span className="badge bg-danger ms-auto small">
+                    {movie.country || 'Movie'}
+                  </span>
                 </div>
                 
                 <h6 className="card-title fw-bold mb-1">{movie.title}</h6>
                 <p className="text-muted small mb-2">{movie.subtitle}</p>
-                <p className="text-primary small mb-2 fw-semibold">{movie.quality}</p>
-                <p className="text-muted small mb-3">{movie.type}</p>
+                <div className="d-flex gap-1 mb-2 flex-wrap">
+                  {movie.languages?.slice(0, 2).map((lang, idx) => (
+                    <span key={idx} className="badge bg-info small">{lang}</span>
+                  ))}
+                </div>
+                <p className="text-muted small mb-3" style={{ overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical'}}>
+                  {movie.description}
+                </p>
                 
                 <button className="btn btn-primary btn-sm w-100">
                   <FontAwesomeIcon icon={faDownload} className="me-2" />

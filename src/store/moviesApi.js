@@ -1,12 +1,24 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
 
+const BASE_URL = 'http://192.168.0.106:5040/api/v1'
+
 export const moviesApi = createApi({
   reducerPath: 'moviesApi',
-  baseQuery: fetchBaseQuery({ baseUrl: 'http://localhost:3001' }),
+  baseQuery: fetchBaseQuery({ 
+    baseUrl: BASE_URL,
+    prepareHeaders: (headers, { getState }) => {
+      const token = getState().auth.token
+      if (token) {
+        headers.set('authorization', `Bearer ${token}`)
+      }
+      return headers
+    },
+  }),
   tagTypes: ['Movies'],
   endpoints: (builder) => ({
     getMovies: builder.query({
       query: () => '/movies',
+      transformResponse: (response) => response.data,
       providesTags: ['Movies'],
     }),
 
@@ -21,65 +33,42 @@ export const moviesApi = createApi({
         method: 'POST',
         body: movie,
       }),
-      async onQueryStarted(movie, { dispatch, queryFulfilled }) {
-        try {
-          const { data: newMovie } = await queryFulfilled
-          dispatch(
-            moviesApi.util.updateQueryData('getMovies', undefined, (draft) => {
-              draft.push(newMovie)
-            })
-          )
-        } catch {
-          // error
-        }
-      },
+      invalidatesTags: ['Movies'],
     }),
 
-    // Update movie
     updateMovie: builder.mutation({
       query: ({ id, ...movie }) => ({
         url: `/movies/${id}`,
-        method: 'PUT',
+        method: 'PATCH',
         body: movie,
       }),
-      async onQueryStarted({ id, ...movie }, { dispatch, queryFulfilled }) {
-        const patchResult = dispatch(
-          moviesApi.util.updateQueryData('getMovies', undefined, (draft) => {
-            const index = draft.findIndex(m => m.id === id)
-            if (index !== -1) {
-              draft[index] = { ...draft[index], ...movie }
-            }
-          })
-        )
-        try {
-          await queryFulfilled
-        } catch {
-          patchResult.undo() 
-        }
-      },
+      invalidatesTags: ['Movies'],
     }),
 
-    // Delete movie
     deleteMovie: builder.mutation({
       query: (id) => ({
         url: `/movies/${id}`,
         method: 'DELETE',
       }),
-      async onQueryStarted(id, { dispatch, queryFulfilled }) {
-        const patchResult = dispatch(
-          moviesApi.util.updateQueryData('getMovies', undefined, (draft) => {
-            return draft.filter(movie => movie.id !== id)
-          })
-        )
-        try {
-          await queryFulfilled
-        } catch {
-          patchResult.undo() 
-        }
-      },
+      invalidatesTags: ['Movies'],
+    }),
+
+    // File upload endpoint
+    uploadFile: builder.mutation({
+      query: (formData) => ({
+        url: '/file-upload-google-drive',
+        method: 'POST',
+        body: formData,
+      }),
     }),
   }),
 })
 
-// Export hooks for usage in components
-export const { useGetMoviesQuery, useGetMovieByIdQuery, useAddMovieMutation, useUpdateMovieMutation, useDeleteMovieMutation } = moviesApi
+export const { 
+  useGetMoviesQuery, 
+  useGetMovieByIdQuery, 
+  useAddMovieMutation, 
+  useUpdateMovieMutation, 
+  useDeleteMovieMutation,
+  useUploadFileMutation
+} = moviesApi
