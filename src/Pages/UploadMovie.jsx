@@ -6,7 +6,7 @@ import { useGetCategoriesQuery } from '../store/categoryApi'
 import { useGetGenresQuery } from '../store/categoryApi'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
-import { useForm } from 'react-hook-form'
+import { useFieldArray, useForm } from 'react-hook-form'
 import { yupResolver } from '@hookform/resolvers/yup'
 import * as yup from 'yup'
 
@@ -19,7 +19,16 @@ const movieSchema = yup.object({
   trailerLink: yup.string().url('Must be a valid URL'),
   releaseDate: yup.date().required('Release date is required'),
   slug: yup.string().required('Slug is required').matches(/^[a-z0-9-]+$/, 'Slug must be lowercase letters, numbers, and hyphens only'),
-  isFeatured: yup.boolean()
+  isFeatured: yup.boolean(),
+  cast: yup.array().of(yup.object({ value: yup.string() })),
+  languages: yup.array().of(yup.object({ value: yup.string() })),
+  tags: yup.array().of(yup.object({ value: yup.string() })),
+  links: yup.array().of(yup.object({
+    quality: yup.string(),
+    url: yup.string(),
+    language: yup.string(),
+    size: yup.string(),
+  })),
 }).required()
 
 const UploadMovie = () => {
@@ -33,28 +42,26 @@ const UploadMovie = () => {
   const [posterPreview, setPosterPreview] = useState('')
   const [thumbnailFiles, setThumbnailFiles] = useState([])
   const [screenshotFiles, setScreenshotFiles] = useState([])
-  const [cast, setCast] = useState([''])
-  const [languages, setLanguages] = useState([''])
-  const [tags, setTags] = useState([''])
   const [selectedGenres, setSelectedGenres] = useState([])
-  const [downloadLinks, setDownloadLinks] = useState([{ quality: '', url: '', language: '', size: '' }])
 
-  const { register, handleSubmit, formState: { errors } } = useForm({
+  const { register, handleSubmit, control, formState: { errors } } = useForm({
     resolver: yupResolver(movieSchema),
     defaultValues: {
-      title: '',
-      subtitle: '',
-      categoryId: '',
-      description: '',
-      country: '',
-      director: '',
-      writer: '',
-      trailerLink: '',
+      title: '', subtitle: '', categoryId: '', description: '', country: '',
+      director: '', writer: '', trailerLink: '',
       releaseDate: new Date().toISOString().split('T')[0],
-      slug: '',
-      isFeatured: false
+      slug: '', isFeatured: false,
+      cast: [{ value: '' }],
+      languages: [{ value: '' }],
+      tags: [{ value: '' }],
+      links: [{ quality: '', url: '', language: '', size: '' }],
     }
   })
+
+  const { fields: castFields, append: appendCast, remove: removeCast } = useFieldArray({ control, name: 'cast' })
+  const { fields: langFields, append: appendLang, remove: removeLang } = useFieldArray({ control, name: 'languages' })
+  const { fields: tagFields, append: appendTag, remove: removeTag } = useFieldArray({ control, name: 'tags' })
+  const { fields: linkFields, append: appendLink, remove: removeLink } = useFieldArray({ control, name: 'links' })
 
 
   const handlePosterChange = (e) => {
@@ -81,22 +88,15 @@ const UploadMovie = () => {
     
     try {
       const result = await uploadFile(formData).unwrap()
-
       console.log("Upload result:", result)
       
-      // Try different possible response structures
-      const url = result?.data?.data?.directViewLink || 
-                  result?.data?.directViewLink || 
-                  result?.directViewLink ||
-                  result?.data?.url ||
-                  result?.url ||
-                  result?.data?.data?.url
-      
+      // Different possible response
+      const url = result?.data?.data?.directViewLink || result?.data?.directViewLink || result?.directViewLink ||
+                  result?.data?.url || result?.url || result?.data?.data?.url 
       if (!url) {
         console.error('Could not find URL in response:', result)
         throw new Error('File uploaded but URL not found in response')
       }
-      
       console.log("Extracted URL:", url)
       return url
     } catch (error) {
@@ -145,11 +145,11 @@ const UploadMovie = () => {
       // Prepare movie data - only include arrays if they have valid values
       const movieData = {
         ...data,
-        cast: cast.filter(c => c.trim()),
-        languages: languages.filter(l => l.trim()),
-        tags: tags.filter(t => t.trim()),
+        cast: data.cast.map(c => c.value).filter(Boolean),
+        languages: data.languages.map(l => l.value).filter(Boolean),
+        tags: data.tags.map(t => t.value).filter(Boolean),
         genresId: selectedGenres,
-        links: downloadLinks.filter(link => link.url && link.quality),
+        links: data.links.filter(link => link.url && link.quality),
         trailerLink: data.trailerLink ? [data.trailerLink] : []
       }
 
@@ -176,22 +176,9 @@ const UploadMovie = () => {
     }
   }
 
-  const addArrayField = (setter, currentArray) => {
-    setter([...currentArray, ''])
-  }
 
-  const updateArrayField = (setter, currentArray, index, value) => {
-    const newArray = [...currentArray]
-    newArray[index] = value
-    setter(newArray)
-  }
-
-  const removeArrayField = (setter, currentArray, index) => {
-    setter(currentArray.filter((_, i) => i !== index))
-  }
-
-  const categories = categoriesData?.data || []
-  const genres = genresData?.data || []
+  const categories = categoriesData || []
+  const genres = genresData || []
 
   return (
     <div>
@@ -317,15 +304,15 @@ const UploadMovie = () => {
               {/* Cast */}
               <div className="col-12 mb-3">
                 <label className="form-label fw-semibold">Cast</label>
-                {cast.map((member, index) => (
-                  <div key={index} className="input-group mb-2">
-                    <input type="text" value={member} onChange={(e) => updateArrayField(setCast, cast, index, e.target.value)} className="form-control" placeholder="Actor name"/>
-                    <button type="button" className="btn btn-outline-danger" onClick={() => removeArrayField(setCast, cast, index)}>
+                {castFields.map((field, index) => (
+                  <div key={field.id} className="input-group mb-2">
+                    <input type="text" {...register(`cast.${index}.value`)} className="form-control" placeholder="Actor name"/>
+                    <button type="button" className="btn btn-outline-danger" onClick={() => removeCast(index)}>
                       <FontAwesomeIcon icon={faTrash}/>
                     </button>
                   </div>
                 ))}
-                <button type="button" className="btn btn-sm btn-outline-primary" onClick={() => addArrayField(setCast, cast)}>
+                <button type="button" className="btn btn-sm btn-outline-primary" onClick={() => appendCast({ value: '' })}>
                   + Add Cast Member
                 </button>
               </div>
@@ -333,15 +320,15 @@ const UploadMovie = () => {
               {/* Languages */}
               <div className="col-md-6 mb-3">
                 <label className="form-label fw-semibold">Languages</label>
-                {languages.map((lang, index) => (
-                  <div key={index} className="input-group mb-2">
-                    <input type="text" value={lang} onChange={(e) => updateArrayField(setLanguages, languages, index, e.target.value)} className="form-control" placeholder="Bangla"/>
-                    <button type="button" className="btn btn-outline-danger" onClick={() => removeArrayField(setLanguages, languages, index)}>
+                {langFields.map((field, index) => (
+                  <div key={field.id} className="input-group mb-2">
+                    <input type="text" {...register(`languages.${index}.value`)} className="form-control" placeholder="Bangla"/>
+                    <button type="button" className="btn btn-outline-danger" onClick={() => removeLang(index)}>
                       <FontAwesomeIcon icon={faTrash} />
                     </button>
                   </div>
                 ))}
-                <button type="button" className="btn btn-sm btn-outline-primary" onClick={() => addArrayField(setLanguages, languages)}>
+                <button type="button" className="btn btn-sm btn-outline-primary" onClick={() => appendLang({ value: '' })}>
                   + Add Language
                 </button>
               </div>
@@ -349,15 +336,15 @@ const UploadMovie = () => {
               {/* Tags */}
               <div className="col-md-6 mb-3">
                 <label className="form-label fw-semibold">Tags</label>
-                {tags.map((tag, index) => (
-                  <div key={index} className="input-group mb-2">
-                    <input type="text" value={tag} onChange={(e) => updateArrayField(setTags, tags, index, e.target.value)} className="form-control" placeholder="action"/>
-                    <button type="button" className="btn btn-outline-danger" onClick={() => removeArrayField(setTags, tags, index)}>
+                {tagFields.map((field, index) => (
+                  <div key={field.id} className="input-group mb-2">
+                    <input type="text" {...register(`tags.${index}.value`)} className="form-control" placeholder="action"/>
+                    <button type="button" className="btn btn-outline-danger" onClick={() => removeTag(index)}>
                       <FontAwesomeIcon icon={faTrash} />
                     </button>
                   </div>
                 ))}
-                <button type="button" className="btn btn-sm btn-outline-primary" onClick={() => addArrayField(setTags, tags)}>
+                <button type="button" className="btn btn-sm btn-outline-primary" onClick={() => appendTag({ value: '' })}>
                   + Add Tag
                 </button>
               </div>
@@ -365,55 +352,31 @@ const UploadMovie = () => {
               {/* Download Links */}
               <div className="col-12 mb-3">
                 <label className="form-label fw-semibold">Download Links</label>
-                {downloadLinks.map((link, index) => (
-                  <div key={index} className="card mb-2 p-3">
+                {linkFields.map((field, index) => (
+                  <div key={field.id} className="card mb-2 p-3">
                     <div className="row">
                       <div className="col-md-3 mb-2">
-                        <input type="text" value={link.quality} onChange={(e) => {
-                            const newLinks = [...downloadLinks]
-                            newLinks[index].quality = e.target.value
-                            setDownloadLinks(newLinks)
-                          }}
-                          className="form-control" placeholder="Movie Quality" />
+                        <input type="text" {...register(`links.${index}.quality`)} className="form-control" placeholder="Movie Quality"/>
                       </div>
                       <div className="col-md-3 mb-2">
-                        <input type="text" value={link.language}
-                          onChange={(e) => {
-                            const newLinks = [...downloadLinks]
-                            newLinks[index].language = e.target.value
-                            setDownloadLinks(newLinks)
-                          }}
-                          className="form-control" placeholder="English"/>
+                        <input type="text" {...register(`links.${index}.language`)} className="form-control" placeholder="English"/>
                       </div>
                       <div className="col-md-2 mb-2">
-                        <input type="text" value={link.size}
-                          onChange={(e) => {
-                            const newLinks = [...downloadLinks]
-                            newLinks[index].size = e.target.value
-                            setDownloadLinks(newLinks)
-                          }}
-                          className="form-control" placeholder="Movie Size" />
+                        <input type="text" {...register(`links.${index}.size`)} className="form-control" placeholder="Movie Size"/>
                       </div>
                       <div className="col-md-3 mb-2">
-                        <input type="url" value={link.url}
-                          onChange={(e) => {
-                            const newLinks = [...downloadLinks]
-                            newLinks[index].url = e.target.value
-                            setDownloadLinks(newLinks)
-                          }}
-                          className="form-control" placeholder="Download URL"/>
+                        <input type="url" {...register(`links.${index}.url`)} className="form-control" placeholder="Download URL"/>
                       </div>
                       <div className="col-md-1">
-                        <button type="button" className="btn btn-outline-danger"
-                          onClick={() => setDownloadLinks(downloadLinks.filter((_, i) => i !== index))}>
+                        <button type="button" className="btn btn-outline-danger" onClick={() => removeLink(index)}>
                           <FontAwesomeIcon icon={faTrash} />
                         </button>
                       </div>
                     </div>
                   </div>
                 ))}
-                <button type="button"  className="btn btn-sm btn-outline-primary" 
-                  onClick={() => setDownloadLinks([...downloadLinks, { quality: '', url: '', language: '', size: '' }])}>
+                <button type="button" className="btn btn-sm btn-outline-primary"
+                  onClick={() => appendLink({ quality: '', url: '', language: '', size: '' })}>
                   + Add Download Link
                 </button>
               </div>

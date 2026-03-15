@@ -1,6 +1,6 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
 
-const BASE_URL = 'http://192.168.0.106:5040/api/v1'
+const BASE_URL = 'http://192.168.0.101:5040/api/v1'
 
 export const categoryApi = createApi({
   reducerPath: 'categoryApi',
@@ -19,6 +19,7 @@ export const categoryApi = createApi({
     // Category endpoints
     getCategories: builder.query({
       query: () => '/category',
+      transformResponse: (response) => response?.data || [],
       providesTags: ['Category'],
     }),
     addCategory: builder.mutation({
@@ -27,7 +28,16 @@ export const categoryApi = createApi({
         method: 'POST',
         body: category,
       }),
-      invalidatesTags: ['Category'],
+      async onQueryStarted(_, { dispatch, queryFulfilled }) {
+        try {
+          const { data: newCategory } = await queryFulfilled
+          dispatch(
+            categoryApi.util.updateQueryData('getCategories', undefined, (draft) => {
+              draft.push(newCategory?.data || newCategory)
+            })
+          )
+        } catch {}
+      },
     }),
     updateCategory: builder.mutation({
       query: ({ id, ...category }) => ({
@@ -35,19 +45,40 @@ export const categoryApi = createApi({
         method: 'PATCH',
         body: category,
       }),
-      invalidatesTags: ['Category'],
+      async onQueryStarted({ id }, { dispatch, queryFulfilled }) {
+        try {
+          const { data: updated } = await queryFulfilled
+          dispatch(
+            categoryApi.util.updateQueryData('getCategories', undefined, (draft) => {
+              const index = draft.findIndex((c) => c._id === id)
+              if (index !== -1) Object.assign(draft[index], updated?.data || updated)
+            })
+          )
+        } catch {}
+      },
     }),
     deleteCategory: builder.mutation({
       query: (id) => ({
         url: `/category/${id}`,
         method: 'DELETE',
       }),
-      invalidatesTags: ['Category'],
+      async onQueryStarted(id, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled
+          dispatch(
+            categoryApi.util.updateQueryData('getCategories', undefined, (draft) => {
+              const index = draft.findIndex((c) => c._id === id)
+              if (index !== -1) draft.splice(index, 1)
+            })
+          )
+        } catch {}
+      },
     }),
 
     // Genre endpoints
     getGenres: builder.query({
       query: () => '/genres',
+      transformResponse: (response) => response?.data || [],
       providesTags: ['Genre'],
     }),
     addGenre: builder.mutation({
@@ -56,7 +87,16 @@ export const categoryApi = createApi({
         method: 'POST',
         body: genres,
       }),
-      invalidatesTags: ['Genre'],
+      async onQueryStarted(_, { dispatch, queryFulfilled }) {
+        try {
+          const { data: newGenre } = await queryFulfilled
+          dispatch(
+            categoryApi.util.updateQueryData('getGenres', undefined, (draft) => {
+              draft.push(newGenre?.data || newGenre)
+            })
+          )
+        } catch {}
+      },
     }),
     updateGenre: builder.mutation({
       query: ({ id, ...genres }) => ({
@@ -64,14 +104,34 @@ export const categoryApi = createApi({
         method: 'PATCH',
         body: genres,
       }),
-      invalidatesTags: ['Genre'],
+      async onQueryStarted({ id }, { dispatch, queryFulfilled }) {
+        try {
+          const { data: updated } = await queryFulfilled
+          dispatch(
+            categoryApi.util.updateQueryData('getGenres', undefined, (draft) => {
+              const index = draft.findIndex((g) => g._id === id)
+              if (index !== -1) Object.assign(draft[index], updated?.data || updated)
+            })
+          )
+        } catch {}
+      },
     }),
     deleteGenre: builder.mutation({
       query: (id) => ({
         url: `/genres/${id}`,
         method: 'DELETE',
       }),
-      invalidatesTags: ['Genre'],
+      async onQueryStarted(id, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled
+          dispatch(
+            categoryApi.util.updateQueryData('getGenres', undefined, (draft) => {
+              const index = draft.findIndex((g) => g._id === id)
+              if (index !== -1) draft.splice(index, 1)
+            })
+          )
+        } catch {}
+      },
     }),
   }),
 })

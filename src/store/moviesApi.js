@@ -1,6 +1,6 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
 
-const BASE_URL = 'http://192.168.0.106:5040/api/v1'
+const BASE_URL = 'http://192.168.0.101:5040/api/v1'
 
 export const moviesApi = createApi({
   reducerPath: 'moviesApi',
@@ -18,7 +18,9 @@ export const moviesApi = createApi({
   endpoints: (builder) => ({
     getMovies: builder.query({
       query: () => '/movies',
-      transformResponse: (response) => response.data,
+      transformResponse: (response) => {
+        return response?.data?.data || []
+      },
       providesTags: ['Movies'],
     }),
 
@@ -33,7 +35,16 @@ export const moviesApi = createApi({
         method: 'POST',
         body: movie,
       }),
-      invalidatesTags: ['Movies'],
+      async onQueryStarted(_, { dispatch, queryFulfilled }) {
+        try {
+          const { data: newMovie } = await queryFulfilled
+          dispatch(
+            moviesApi.util.updateQueryData('getMovies', undefined, (draft) => {
+              draft.push(newMovie?.data || newMovie)
+            })
+          )
+        } catch {}
+      },
     }),
 
     updateMovie: builder.mutation({
@@ -42,7 +53,17 @@ export const moviesApi = createApi({
         method: 'PATCH',
         body: movie,
       }),
-      invalidatesTags: ['Movies'],
+      async onQueryStarted({ id }, { dispatch, queryFulfilled }) {
+        try {
+          const { data: updated } = await queryFulfilled
+          dispatch(
+            moviesApi.util.updateQueryData('getMovies', undefined, (draft) => {
+              const index = draft.findIndex((m) => m._id === id)
+              if (index !== -1) Object.assign(draft[index], updated?.data || updated)
+            })
+          )
+        } catch {}
+      },
     }),
 
     deleteMovie: builder.mutation({
@@ -50,7 +71,17 @@ export const moviesApi = createApi({
         url: `/movies/${id}`,
         method: 'DELETE',
       }),
-      invalidatesTags: ['Movies'],
+      async onQueryStarted(id, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled
+          dispatch(
+            moviesApi.util.updateQueryData('getMovies', undefined, (draft) => {
+              const index = draft.findIndex((m) => m._id === id)
+              if (index !== -1) draft.splice(index, 1)
+            })
+          )
+        } catch {}
+      },
     }),
 
     // File upload endpoint

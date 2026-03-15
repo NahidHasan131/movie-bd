@@ -129,7 +129,7 @@ const Categories = () => {
     )
   }
 
-  const categories = categoriesData?.data || []
+  const categories = categoriesData || []
 
   return (
     <div>

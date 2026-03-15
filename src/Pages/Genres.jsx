@@ -109,7 +109,7 @@ const Genres = () => {
     )
   }
 
-  const genres = genresData?.data || []
+  const genres = genresData || []
 
   return (
     <div>

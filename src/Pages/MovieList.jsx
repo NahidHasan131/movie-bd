@@ -6,8 +6,7 @@ import { Modal, Button, Form } from 'react-bootstrap'
 import { toast } from 'react-toastify'
 
 const MovieList = () => {
-  const { data: response, isLoading, isError } = useGetMoviesQuery()
-  const movies = response?.data
+  const { data: movies = [], isLoading, isError } = useGetMoviesQuery()
   const [deleteMovie, { isLoading: isDeleting }] = useDeleteMovieMutation()
   const [updateMovie, { isLoading: isUpdating }] = useUpdateMovieMutation()
   
@@ -186,7 +185,7 @@ const MovieList = () => {
                       <span className="badge bg-info">{movie.country || 'N/A'}</span>
                     </td>
                     <td className="align-middle">
-                      <span className="badge bg-primary">{movie.categoryId || 'N/A'}</span>
+                      <span className="badge bg-primary">{movie.categoryId?.name || movie.categoryId || 'N/A'}</span>
                     </td>
                     <td className="align-middle">
                       {movie.languages?.slice(0, 2).map((lang, idx) => (

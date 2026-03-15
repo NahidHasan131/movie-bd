@@ -11,9 +11,11 @@ import {
   faUser
 } from '@fortawesome/free-solid-svg-icons'
 import { Link } from 'react-router-dom'
+import { useProfileQuery } from '../../store/authApi'
 import './Sidebar.css'
 
 const Sidebar = ({ isExpanded, toggleSidebar }) => {
+  const { data: profile } = useProfileQuery()
   const menuItems = [
     { icon: faHome, label: 'Dashboard', path: '/admin/dashboard' },
     { icon: faUpload, label: 'Upload Movie', path: '/admin/upload-movie' },
@@ -61,8 +63,8 @@ const Sidebar = ({ isExpanded, toggleSidebar }) => {
               <FontAwesomeIcon icon={faUser} />
             </div>
             <div className={`ms-3 ${!isExpanded && 'd-none'}`}>
-              <p className="mb-0 fw-semibold small">Admin User</p>
-              <p className="mb-0 text-muted" style={{ fontSize: '0.75rem' }}>admin@moviebd.com</p>
+              <p className="mb-0 fw-semibold small">{profile?.name || 'User'}</p>
+              <p className="mb-0 text-muted" style={{ fontSize: '0.75rem' }}>{profile?.mobile || ''}</p>
             </div>
           </div>
         </div>

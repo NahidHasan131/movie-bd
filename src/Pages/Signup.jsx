@@ -45,43 +45,27 @@ const Signup = () => {
   })
 
   const onSubmit = async (data) => {
-    const { ...signupData } = data
+    const { confirmPassword, ...signupData } = data
     signupData.status = 'ACTIVE'
-
-    console.log('Signup request data:', signupData)
 
     try {
       const result = await signup(signupData).unwrap()
       
-      console.log('Signup response:', result)
-      
-      if (result.code === 200 || result.code === 201) {
-        if (result.data && result.data.accessToken) {
-          dispatch(setCredentials({
-            accessToken: result.data.accessToken
-          }))
-          
-          toast.success(result.message || 'Account created successfully!', {
-            position: 'top-right',
-            autoClose: 1000
-          })
-          
-          navigate('/')
-        } else {
-          toast.error('Signup successful but no token received. Please login.', {
-            position: 'top-right',
-            autoClose: 1000
-          })
-          navigate('/auth/login')
-        }
-      } else {
-        toast.error(result.message || 'Signup failed', {
+      if (result.data?.accessToken) {
+        dispatch(setCredentials({ accessToken: result.data.accessToken }))
+        toast.success(result.message || 'Account created successfully!', {
           position: 'top-right',
           autoClose: 1000
         })
+        navigate('/')
+      } else {
+        toast.success('Account created! Please login.', {
+          position: 'top-right',
+          autoClose: 1500
+        })
+        navigate('/auth/login')
       }
     } catch (err) {
-      console.error('Signup error:', err)
       const errorMessage = err?.data?.message || err?.message || 'Failed to create account'
       toast.error(errorMessage, {
         position: 'top-right',

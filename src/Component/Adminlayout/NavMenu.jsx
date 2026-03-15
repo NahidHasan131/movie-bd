@@ -98,7 +98,7 @@ const NavMenu = () => {
                     <span className="visually-hidden">Loading...</span>
                   </div>
                 </div>
-              ) : profileData?.data ? (
+              ) : profileData ? (
                 <>
                   <div className="px-3 py-3 border-bottom">
                     <div className="d-flex align-items-center gap-3">
@@ -106,8 +106,8 @@ const NavMenu = () => {
                         <FontAwesomeIcon icon={faCircleUser} size="2x" />
                       </div>
                       <div>
-                        <h6 className="mb-0 fw-bold">{profileData.data.name}</h6>
-                        <small className="text-muted">{profileData.data.mobile}</small>
+                        <h6 className="mb-0 fw-bold">{profileData.name}</h6>
+                        <small className="text-muted">{profileData.mobile}</small>
                       </div>
                     </div>
                   </div>
@@ -115,17 +115,17 @@ const NavMenu = () => {
                   <div className="px-3 py-2">
                     <div className="mb-2 d-flex justify-content-between border-bottom py-2">
                       <small className="text-muted">Role:</small>
-                      <span className="fw-semibold badge bg-primary">{profileData.data.role}</span>
+                      <span className="fw-semibold badge bg-primary">{profileData.role}</span>
                     </div>
                     <div className="mb-2 d-flex justify-content-between border-bottom py-2">
                       <small className="text-muted">Gender:</small>
-                      <span className="fw-semibold badge bg-primary">{profileData.data.gender}</span>
+                      <span className="fw-semibold badge bg-primary">{profileData.gender}</span>
                     </div>
                     <div className="mb-2 d-flex justify-content-between">
                       <small className="text-muted">Status:</small>
                       <div className="fw-semibold">
-                        <span className={`badge ${profileData.data.status === 'ACTIVE' ? 'bg-success' : 'bg-secondary'}`}>
-                          {profileData.data.status}
+                        <span className={`badge ${profileData.status === 'ACTIVE' ? 'bg-success' : 'bg-secondary'}`}>
+                          {profileData.status}
                         </span>
                       </div>
                     </div>

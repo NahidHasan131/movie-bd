@@ -5,9 +5,7 @@ import './AllMovies.css'
 
 
 const AllMovies = () => {
-  const { data: response, isLoading, isError, error } = useGetMoviesQuery()
-
-  const movies = response?.data
+  const { data: movies = [], isLoading, isError, error } = useGetMoviesQuery()
 
   if (isLoading) {
     return (
