@@ -43,7 +43,9 @@ export const moviesApi = createApi({
               draft.push(newMovie?.data || newMovie)
             })
           )
-        } catch {}
+        } catch {
+          console.log()
+        }
       },
     }),
 
@@ -62,7 +64,9 @@ export const moviesApi = createApi({
               if (index !== -1) Object.assign(draft[index], updated?.data || updated)
             })
           )
-        } catch {}
+        } catch {
+          console.log()
+        }
       },
     }),
 
@@ -80,7 +84,7 @@ export const moviesApi = createApi({
               if (index !== -1) draft.splice(index, 1)
             })
           )
-        } catch {}
+        } catch {console.log()}
       },
     }),
 
